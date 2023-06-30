@@ -6,7 +6,7 @@
 
 ; define constants used all over the place
 
-version = '1_0'
+version = '1_1' ; restrict to +/-41 sec around apogee 6/30/23
 numberstr = '353' ; 36.353
 theyd = 2021252 ; sept 9, 2021 17:25:00 UT
 humandatestr='Sept 9, 2021'

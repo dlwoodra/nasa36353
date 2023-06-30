@@ -315,9 +315,9 @@ comments = ['Date generated '+systime(),'',$
    ' Apogee(km)='+apogeekmstr,' at T+'+apogeesecstr+' seconds', $
    'MEGS-A Slit 1 to slit 2 crossover occurs at 14.93nm', $
    'MEGS-A Slit 2 to MEGS-B crossover occurs at '+strtrim(max_ma_wave,2)+'nm', $
-      '', $
-      'The flight profile from 36.336 was used since it is not available for this flight.', $
-      '', $
+;      '', $
+;      'The flight profile from 36.336 was used since it is not available for this flight.', $
+;      '', $
 ;      'The apogee of 284 km occurred at T+273 seconds.',$
 ;   'Uncertainty is from SURF combined with in-flight scatter from 248-318 ', $
 ;   'seconds after launch','',$

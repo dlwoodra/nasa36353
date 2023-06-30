@@ -49,8 +49,12 @@ restore,'rocket36'+numberstr+'_megsa_irr.sav' ; use spectra
 ;solar = lindgen(21)+14L ; indices of solar measurements (0-25)
 ;solar = lindgen(30)+32L
 ;solar = solaridx_a
-solar = solaridx_a[where(spectra[solaridx_a].time gt 150 and spectra[solaridx_a].time lt 400)]
 
+; 6/30/23 restrict time range to good spectra only
+;solar = solaridx_a[where(spectra[solaridx_a].time gt 150 and spectra[solaridx_a].time lt 400)]
+apogeesec = float(apogeesecstr)
+solar = solaridx_a[where(spectra[solaridx_a].time gt apogeesec-41 and $
+                         spectra[solaridx_a].time lt apogeesec+41)]
 
 ; replace unrealistic values in solar spectra with a fill value
 fill_value = 1e-8
