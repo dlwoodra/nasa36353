@@ -155,6 +155,8 @@ stop
 ; seems to be off by 0.25 DN before solar obs in bin 3213, 97.26 nm
 ; perform a fine-tune to enforce each column with a linear trend
 newoutput = detrend_mb_dark(output, preidx, postidx)
+; fine tuning was causing large negative values in output.image
+; replaced with flight-filtering for L0D
 output = newoutput
 stop
 
@@ -540,6 +542,9 @@ new[*,1023-rn] = bmegs[94].image[*,1023-rn]
 
 bmegs[95].image = new
 
+; streak from [1896,148:511] between 100nm and 101nm in a dim place
+; might be correctable with dark offset
+
 return, bmegs
 end
 
@@ -628,7 +633,7 @@ for i=0,n_elements(bmegs)-1 do begin
    previdx = (i + n_elements(bmegs) - 1) mod n_elements(bmegs) 
    deltaimg = float(bmegs[i].image) - float(bmegs[previdx].image)
    !p.multi=0
-   plot,deltaimg,title='index #'+strtrim(i,2)+'-#'+strtrim(previdx,2)+' T='+strtrim(bmegs[i].time,2),yr=median(deltaimg)+[-1.,1.]*6.*stddev(deltaimg),ytit='Difference (DN)
+   plot,deltaimg,title='index #'+strtrim(i,2)+'-#'+strtrim(previdx,2)+' T='+strtrim(bmegs[i].time,2),yr=median(deltaimg)+[-1.,1.]*6.*stddev(deltaimg),ytit='Difference (DN)'
    wset,2
    !p.multi=[0,1,2]
    plot,total(deltaimg,1)/2048.,ystyle=1,xstyle=1, $
@@ -645,16 +650,9 @@ end
 ;stop
 
 ; fix/replace corrupted images
-;bmegs[1].image  = bmegs[0].image < bmegs[2].image
-;bmegs[27].image = bmegs[29].image < bmegs[28].image ; 26 is suspect
 
 bmegs.image[2044,0] = bmegs.image[2045,0] ; replace framestart bit in MEGS-B rocket
 bmegs.image[3,1023] = bmegs.image[3,1022]     ; replace other half pair
-;  ; bad column in rocket flight 36.258
-;bmegs.image[1896,0:511] = (bmegs.image[1895,0:511] + bmegs.image[1897,0:511])*0.5
-;  ; bad stuff in 2 columns in rocket flight 36.258
-;bmegs.image[1587,0:511] = (bmegs.image[1586,0:511]*.33333 + bmegs.image[1589,0:511]*0.66667)
-;bmegs.image[1588,0:511] = (bmegs.image[1586,0:511]*.66667 + bmegs.image[1589,0:511]*0.33333)
 
 
 ; inventory the images
@@ -791,10 +789,10 @@ tmpimg[*,512:*] = tmpimg[*,512:*] - median(tmpimg[*,512:*])
 
 megsb_tuned_mask, tmpimg>0, zmask, tunedmask
 
-print,'INFO: tuned tunedmask to 36.336'
+print,'INFO: tuned tunedmask to 36.353/36.389'
 tvscl,hist_equal(congrid((tmpimg*tunedmask)>0,xsize,ysize))
-wait,1
-;stop
+;wait,1
+stop
 
 ; for some reason, megsb_tuned_mask is off by ~30 pixels
 ;tunedmask = shift(tunedmask,0,30) ; shift it to match solar data
@@ -807,16 +805,16 @@ wait,1
 
 ; tunedmask is pretty good for 36.258, too
 
-; hand tune to 36.353
-tunedmasklow = shift(tunedmask,0,1)
-tunedmaskhigh = shift(tunedmask,0,-3)
-tunedmask = tunedmasklow OR tunedmaskhigh
+;; hand tune to 36.353
+;tunedmasklow = shift(tunedmask,0,1)
+;tunedmaskhigh = shift(tunedmask,0,-3)
+;tunedmask = tunedmasklow OR tunedmaskhigh
 
 ;window,xs=1024,ys=512
 ;print,'INFO: no mask'
 ;tvscl,hist_equal(congrid(tmpimg>0,xsize,ysize)
 ;stop
-print,'INFO: tuned tunedmask to 36.353'
+;print,'INFO: tuned tunedmask to 36.353'
 tvscl,hist_equal(congrid((tmpimg*tunedmask)>0,xsize,ysize))
 wait,1
 ;stop
@@ -840,6 +838,7 @@ print,'INFO: removing dark'
 status=remove_megsb_dark_36353(bmegs, result, tunedmask)
 nodarkimg=result
 
+stop
 ; now do particle filtering
 print,'INFO: particle filtering'
 status=remove_megsb_spikes_36353(nodarkimg, result)
@@ -859,7 +858,7 @@ if save_filtered_img eq 1 then begin
    stop,'*** you really do not want to save this if it is not necessary***'
    save,file=file, mb_no_spikes, /compress
    mb_no_spikes=0b
-   print,'saved'
+   print,'INFO: read_mb_36353 - saved '+file
 endif
    
 heap_gc
@@ -895,7 +894,7 @@ stop
 
 ; for 36.290 (not used)
 ;sensfile='data/sensitivity_MEGSB_fw0_380MeV_2013.sav' ; scaled to A2 in overlap?
-print,'INFO: get_36353_sensitivity'
+print,'INFO: read_mb_36353 - calling get_36353_sensitivity'
 sensitivity = get_36353_sensitivity(/megsb)
 
 ; from Brian 9/13/19 v39 rejected
@@ -951,9 +950,9 @@ sensitivity = get_36353_sensitivity(/megsb)
 ; need to trim Brians sensitivity map to remove bad vertical edges
 sensitivity_orig=sensitivity
 
-stop
+
 ; V3.9 change
-print,'INFO: restoring wavelength map'
+print,'INFO: read_mb_36353 - restoring wavelength map'
 workingdir = file_dirname(routine_filepath()) ; in code
 datapath = workingdir+'/../data/'
 restore,datapath+'rkt36'+numberstr+'_megsb_full_wave.sav' ; waveimg
@@ -966,27 +965,41 @@ restore,datapath+'rkt36'+numberstr+'_megsb_full_wave.sav' ; waveimg
 ; mbCor[idx] = 1.0
 ; sensitivity *= mbCor
 
-print,'INFO: calling clean_sens'
+print,'INFO: read_mb_36353 - calling clean_sens'
  clean_sens, sensitivity, sensitivity_error
  sensitivity_error = sensitivity_error < sensitivity ; clip to 100% error
  sensitivity_error = sensitivity^2*.01/min(total(sensitivity*tunedmask,2)) ; min is 1%
 ; sensitivity_error = total(sensitivity*tunedmask,2)/total(tunedmask,2) ; 1 DN
 
- stop
+ ;stop
 
-print,'INFO: calling make_mb_spectra using nospikes'
+print,'INFO: read_mb_36353 - calling make_mb_spectra using nospikes'
  nospikes.image *= 0.1d         ; divide by integration time 10 seconds
 make_mb_spectra, nospikes, tunedmask, spectra_cps, $
   sensitivity_in=sensitivity, sens_sp=sens_sp, waveimg=waveimg, $
   sensitivity_error_in=sensitivity_error, sens_err_sp=sens_err_sp
 
-print,'INFO: saving rkt36'+numberstr+'_mb_countspectrum.sav'
+; prevent bad long wavelengths
+bad=where(spectra_cps[0].w gt 106.1)
+for i=0,n_elements(spectra_cps)-1 do begin
+   spectra_cps[i].sp[bad] = spectra_cps[i].sp[bad[0]-1] ; pin to last value
+   spectra_cps[i].err[bad] = 1.
+endfor
+
+print,'INFO: read_mb_36353 - saving rkt36'+numberstr+'_mb_countspectrum.sav'
 save,file='rkt36'+numberstr+'_mb_countspectrum.sav',/compress,spectra_cps
 
 ; the image process has drop outs, but this is how to do it
 calimg=nospikes
 for i=0,n_elements(calimg)-1 do calimg[i].image = calimg[i].image*sensitivity
 make_mb_spectra, calimg, tunedmask, spectra_cal, waveimg=waveimg
+; prevent bad long wavelengths
+bad=where(spectra_cal[0].w gt 106.1)
+for i=0,n_elements(spectra_cal)-1 do begin
+   spectra_cal[i].sp[bad] = spectra_cal[i].sp[bad[0]-1] ; pin to last value
+   spectra_cal[i].err[bad] = 1.
+endfor
+
 stop
 
 ; alternative approach is to interpolate the averaged sensitivity as a
@@ -1009,6 +1022,7 @@ senserr2048 = (total(sensitivity_error*tunedmask,2))
 ;while sens2048[cnt] lt 1e-12 do cnt--
 ;sens2048[cnt:*]=sens2048[cnt]
 ;senserr2048[cnt:*]=senserr2048[cnt]
+
 
 
 w2048=total(double(waveimg)*tunedmask,2,/double)/total(tunedmask,2,/double) ; 2048
@@ -1043,7 +1057,7 @@ plot,spectra_cps[ctr0].w,spectra_cps[ctr0].sp,yr=[.1,1e4],/ylog, tit='MEGS-B 36.
 plot,spectra[ctr0].w,spectra[ctr0].sp,yr=[5e-7,1e-2],/ylog,tit='36.'+numberstr,ytit='cps*S (W/m^2/nm)',xtit='Wavelength (nm)',xs=1,ps=10
 
 save,file='rocket36'+numberstr+'_megsb_irr.sav',/compress,spectra,spectra_cps,sens2048,sens3700,senserr3700
-print,'saved rocket36'+numberstr+'_megsb_irr.sav'
+print,'INFO: read_mb_36353 - saved rocket36'+numberstr+'_megsb_irr.sav'
 
 stop
 return,1

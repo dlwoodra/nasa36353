@@ -13,6 +13,21 @@ function best_imgmean, input_in
   input = input_in
   imgstats, input, themean, thestd, themin, themax, themed
 
+  ; perform aggressive particle filtering
+  ; based on flight EVE dark_image_particle_filter.pro 
+  maxdifference = 7 ; DN
+  ; the rocket is warmer/noisier than flight EVE
+  ; increased maxdifference to reflect larger noise
+  adjusted_input = dark_image_particle_filter((input.image), maxdifference)
+  
+  postmean = mean(adjusted_input,dim=3) ; short cut
+  return,postmean
+
+  ; reassign and continue filtering
+  input.image = adjusted_input
+  
+  ;stop
+  
   ; median filter input.image to remove spikes/splotches
   for i=0,n_elements(input)-1 do begin
      prev=i-1

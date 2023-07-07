@@ -71,10 +71,33 @@ pro megsb_tuned_mask, imgfull_in, imgmask, tunedmask
 
 ;rt=[763.023, -0.295935, -1.78369e-5]
 ;bt=[899.382, -0.287142, -1.56213e-5]
-; orig
-rt=[781.796, -0.276607, -2.49433e-05]
-bt=[928.212, -0.265820, -2.52693e-05]
-goto, rt_bt_known
+;; orig
+;rt=[781.796, -0.276607, -2.49433e-05]
+;bt=[928.212, -0.265820, -2.52693e-05]
+
+  ; DLW hand examination of line edges from 36.353, 6/7/23
+  ; wavelengths 33.5, 58.4, 102.5 define a quadratic
+  ;stop
+
+  ; these are the values from 36.389 for reference
+  ;lowerx = [141,805,1946]
+  ;lowery = [748,537,147]
+  ;upperx = [132,802,1950]
+  ;uppery = [891,694,316]
+
+  ; 36.353 is very close to 36.389
+  lowerx = [141,805,1945]
+  lowery = [746,537,148]
+  upperx = [132,803,1950]
+  uppery = [891,695,316]
+  rt = poly_fit(lowerx, lowery, 2)
+  bt = poly_fit(upperx, uppery, 2)
+
+  print,'INFO: megsb_tuned_mask - fit rt = ',rt
+  print,'INFO: megsb_tuned_mask - fit bt = ',bt
+
+
+  goto, rt_bt_known
 
 
 ;
@@ -178,8 +201,8 @@ tunedmask=bytarr(n_elements(imgmask[*,0]),n_elements(imgmask[0,*]))
 ;
 ; 03/27/10 DLW Expand the tuned mask to ensure flux is not lost at long wavelengths
 ;
-botcurve += 1
-topcurve -= 1
+;botcurve += 1
+;topcurve -= 1
 
 
 ; enforce valid ranges only!
