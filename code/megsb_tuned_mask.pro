@@ -215,5 +215,14 @@ for i=0L,2047 do begin
     tunedmask[i,topcurve[i]:botcurve[i]]=1
 endfor
 
+@config36353
+codedir = file_dirname(routine_filepath())
+savfile = codedir+'/../data/megsb_tuned_mask_36'+numberstr+'.sav' ; contains tunedmask
+if file_test(savfile) eq 0 then begin
+   description=['Date:'+systime(),'Hand-tuned mask for rocket flight 36.'+numberstr+' from WSMR on '+humandatestr]
+   save,file=savfile,tunedmask,description,rt,bt,/compress
+   print,'saved ',savfile
+endif
+
 return
 end
